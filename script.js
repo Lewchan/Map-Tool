@@ -57,6 +57,7 @@ const BiomeToEnvironment = {
 let heightmapData = null;
 let heightmapImage = null;
 let materialImages = {};
+let materialEnabled = {}; // 材质层启用状态
 let grids = [];
 
 // DOM元素
@@ -77,6 +78,7 @@ const zoomLevelSpan = document.getElementById('zoom-level');
 const overlayToggle = document.getElementById('overlay-toggle');
 const heightmapPreview = document.getElementById('heightmap-preview');
 const materialPreview = document.getElementById('material-preview');
+const materialList = document.getElementById('material-list');
 const clearHeightmapBtn = document.getElementById('clear-heightmap-btn');
 const clearMaterialBtn = document.getElementById('clear-material-btn');
 
@@ -152,7 +154,7 @@ function loadHeightmap(file) {
             const previewImg = document.createElement('img');
             previewImg.src = e.target.result;
             previewImg.style.maxWidth = '100%';
-            previewImg.style.maxHeight = '180px';
+            previewImg.style.maxHeight = '120px';
             heightmapPreview.appendChild(previewImg);
         };
         img.src = e.target.result;
@@ -169,15 +171,26 @@ function handleMaterials(e) {
 // 加载材质权重图
 function loadMaterials(files) {
     materialImages = {};
+    materialEnabled = {};
     materialPreview.innerHTML = '';
+    materialList.innerHTML = '';
+    
     let loaded = 0;
     const total = files.length;
     
-    files.forEach(file => {
+    const sortedFiles = [...files].sort((a, b) => {
+        const aIdx = parseInt(a.name.match(/^(\d+)\.png$/)?.[1] || '999');
+        const bIdx = parseInt(b.name.match(/^(\d+)\.png$/)?.[1] || '999');
+        return aIdx - bIdx;
+    });
+    
+    sortedFiles.forEach(file => {
         const match = file.name.match(/^(\d+)\.png$/);
         if (!match) return;
         
         const index = parseInt(match[1]);
+        materialEnabled[index] = true; // 默认启用
+        
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
@@ -189,7 +202,7 @@ function loadMaterials(files) {
                 c.drawImage(img, 0, 0);
                 materialImages[index] = c.getImageData(0, 0, img.width, img.height);
                 
-                // 显示预览
+                // 上传预览
                 const item = document.createElement('div');
                 item.className = 'material-item';
                 const previewImg = document.createElement('img');
@@ -199,6 +212,25 @@ function loadMaterials(files) {
                 item.appendChild(previewImg);
                 item.appendChild(label);
                 materialPreview.appendChild(item);
+                
+                // 材质列表面板
+                const listItem = document.createElement('div');
+                listItem.className = 'material-list-item';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = true;
+                checkbox.dataset.index = index;
+                checkbox.addEventListener('change', (e) => {
+                    materialEnabled[index] = e.target.checked;
+                });
+                const listImg = document.createElement('img');
+                listImg.src = e.target.result;
+                const listLabel = document.createElement('span');
+                listLabel.textContent = `${index}.png`;
+                listItem.appendChild(checkbox);
+                listItem.appendChild(listImg);
+                listItem.appendChild(listLabel);
+                materialList.appendChild(listItem);
                 
                 loaded++;
                 if (loaded === total) {
@@ -255,12 +287,12 @@ function generateGrids() {
             const g = heightmapData.data[imgIdx + 1];
             grid.Height = (g << 8) | r;
             
-            // 读取材质权重
+            // 读取材质权重（只考虑启用的材质层）
             let maxWeight = 0;
             let biomeIndex = E_Biome.None;
             
             for (let i = 0; i <= 16; i++) {
-                if (!materialImages[i]) continue;
+                if (!materialImages[i] || !materialEnabled[i]) continue;
                 
                 const matImgX = imgX;
                 const matImgY = imgY;
@@ -608,17 +640,12 @@ function clearHeightmap(e) {
 function clearMaterial(e) {
     e.stopPropagation();
     materialImages = {};
+    materialEnabled = {};
     materialPreview.innerHTML = '';
+    materialList.innerHTML = '';
     materialUpload.querySelector('h3').textContent = '拖放材质权重图文件夹 (0.png ~ 16.png)';
     materialInput.value = '';
 }
-
-// 事件绑定
-zoomInBtn.addEventListener('click', zoomIn);
-zoomOutBtn.addEventListener('click', zoomOut);
-resetZoomBtn.addEventListener('click', resetZoom);
-clearHeightmapBtn.addEventListener('click', clearHeightmap);
-clearMaterialBtn.addEventListener('click', clearMaterial);
 
 // 下载JSON
 function downloadJson() {
@@ -638,5 +665,10 @@ function downloadJson() {
 }
 
 // 事件绑定
+zoomInBtn.addEventListener('click', zoomIn);
+zoomOutBtn.addEventListener('click', zoomOut);
+resetZoomBtn.addEventListener('click', resetZoom);
+clearHeightmapBtn.addEventListener('click', clearHeightmap);
+clearMaterialBtn.addEventListener('click', clearMaterial);
 generateBtn.addEventListener('click', generateGrids);
 downloadBtn.addEventListener('click', downloadJson);

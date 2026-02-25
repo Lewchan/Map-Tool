@@ -10,26 +10,24 @@
         <h1>Map Tool</h1>
         
         <div class="upload-section">
-            <div class="upload-box" id="heightmap-upload">
-                <button class="clear-btn-small" id="clear-heightmap-btn">×</button>
-                <h3>拖放高度图 (16位PNG)</h3>
-                <p class="upload-hint">input/height_map/</p>
-                <input type="file" id="heightmap-input" accept="image/png">
-                <div class="upload-preview" id="heightmap-preview"></div>
+            <div class="upload-box-wrapper">
+                <button class="clear-btn" id="clear-heightmap-btn">清除高度图</button>
+                <div class="upload-box" id="heightmap-upload">
+                    <h3>拖放高度图 (16位PNG)</h3>
+                    <p class="upload-hint">input/height_map/</p>
+                    <input type="file" id="heightmap-input" accept="image/png">
+                    <div class="upload-preview" id="heightmap-preview"></div>
+                </div>
             </div>
-            <div class="upload-box" id="material-upload">
-                <button class="clear-btn-small" id="clear-material-btn">×</button>
-                <h3>拖放材质权重图文件夹 (0.png ~ 16.png)</h3>
-                <p class="upload-hint">input/biome_map/</p>
-                <input type="file" id="material-input" webkitdirectory multiple>
-                <div class="upload-preview" id="material-preview"></div>
+            <div class="upload-box-wrapper">
+                <button class="clear-btn" id="clear-material-btn">清除材质图</button>
+                <div class="upload-box" id="material-upload">
+                    <h3>拖放材质权重图文件夹 (0.png ~ 16.png)</h3>
+                    <p class="upload-hint">input/biome_map/</p>
+                    <input type="file" id="material-input" webkitdirectory multiple>
+                    <div class="upload-preview" id="material-preview"></div>
+                </div>
             </div>
-        </div>
-
-        <div class="preview-toggle">
-            <label>
-                <input type="checkbox" id="overlay-toggle"> 叠加预览高度图和地形分类
-            </label>
         </div>
 
         <div class="params-section">
@@ -64,15 +62,28 @@
 
         <button id="generate-btn">生成JSON</button>
 
-        <div class="preview-section">
-            <div class="preview-controls">
-                <button id="zoom-in-btn">放大 (+)</button>
-                <button id="zoom-out-btn">缩小 (-)</button>
-                <button id="reset-zoom-btn">重置</button>
-                <span id="zoom-level">缩放: 100%</span>
+        <div class="workspace">
+            <div class="material-list-panel">
+                <h3>材质层列表</h3>
+                <div class="material-list" id="material-list"></div>
             </div>
-            <div class="canvas-container" id="canvas-container">
-                <canvas id="preview-canvas"></canvas>
+            <div class="preview-area">
+                <div class="preview-toggle">
+                    <label>
+                        <input type="checkbox" id="overlay-toggle"> 叠加预览高度图和地形分类
+                    </label>
+                </div>
+                <div class="preview-section">
+                    <div class="preview-controls">
+                        <button id="zoom-in-btn">放大 (+)</button>
+                        <button id="zoom-out-btn">缩小 (-)</button>
+                        <button id="reset-zoom-btn">重置</button>
+                        <span id="zoom-level">缩放: 100%</span>
+                    </div>
+                    <div class="canvas-container" id="canvas-container">
+                        <canvas id="preview-canvas"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
 
