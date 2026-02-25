@@ -51,6 +51,29 @@ h1 {
     margin-bottom: 5px;
 }
 
+.upload-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.upload-header h3 {
+    margin: 0;
+}
+
+.clear-btn {
+    width: auto;
+    padding: 5px 12px;
+    font-size: 12px;
+    margin: 0;
+    background: #e74c3c;
+}
+
+.clear-btn:hover {
+    background: #c0392b;
+}
+
 .upload-hint {
     font-size: 12px;
     color: #888;

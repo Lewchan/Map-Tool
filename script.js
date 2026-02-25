@@ -77,6 +77,8 @@ const zoomLevelSpan = document.getElementById('zoom-level');
 const overlayToggle = document.getElementById('overlay-toggle');
 const heightmapPreview = document.getElementById('heightmap-preview');
 const materialPreview = document.getElementById('material-preview');
+const clearHeightmapBtn = document.getElementById('clear-heightmap-btn');
+const clearMaterialBtn = document.getElementById('clear-material-btn');
 
 // 缩放和拖拽状态
 let scale = 1;
@@ -592,10 +594,29 @@ canvasContainer.addEventListener('wheel', (e) => {
     updateCanvasTransform();
 });
 
+// 清除高度图
+function clearHeightmap() {
+    heightmapData = null;
+    heightmapImage = null;
+    heightmapPreview.innerHTML = '';
+    heightmapUpload.querySelector('h3').textContent = '拖放高度图 (16位PNG)';
+    heightmapInput.value = '';
+}
+
+// 清除材质图
+function clearMaterial() {
+    materialImages = {};
+    materialPreview.innerHTML = '';
+    materialUpload.querySelector('h3').textContent = '拖放材质权重图文件夹 (0.png ~ 16.png)';
+    materialInput.value = '';
+}
+
 // 事件绑定
 zoomInBtn.addEventListener('click', zoomIn);
 zoomOutBtn.addEventListener('click', zoomOut);
 resetZoomBtn.addEventListener('click', resetZoom);
+clearHeightmapBtn.addEventListener('click', clearHeightmap);
+clearMaterialBtn.addEventListener('click', clearMaterial);
 
 // 下载JSON
 function downloadJson() {
