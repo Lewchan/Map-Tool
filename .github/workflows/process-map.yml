@@ -1,0 +1,49 @@
+name: Process Map
+on:
+  push:
+    paths:
+      - 'input/**'
+  workflow_dispatch:
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pillow numpy
+      
+      - name: Check input files
+        id: check-input
+        run: |
+          if [ -d "input/height_map" ] && [ "$(ls -A input/height_map)" ] && [ -d "input/biome_map" ] && [ "$(ls -A input/biome_map)" ]; then
+            echo "has_input=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_input=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run map processing
+        if: steps.check-input.outputs.has_input == 'true'
+        run: |
+          mkdir -p output
+          python backend/process_map.py \
+            --heightmap "$(ls input/height_map/*.png | head -1)" \
+            --material-folder input/biome_map \
+            --output output/MapData.json
+      
+      - name: Commit and push results
+        if: steps.check-input.outputs.has_input == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add output/
+          git commit -m "Auto-generate map data" || true
+          git push
