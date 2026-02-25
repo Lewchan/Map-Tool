@@ -58,6 +58,11 @@ let isDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
+// ========== 工具函数：提取纯文件名 ==========
+function getPureFilename(path) {
+    return path.split(/[\\/]/).pop();
+}
+
 // ========== 高度图上传 ==========
 heightmapUpload.addEventListener('click', (e) => {
     console.log('Heightmap upload clicked');
@@ -179,11 +184,7 @@ function loadMaterials(files) {
     let loaded = 0;
     const total = files.length;
     
-    // 提取纯文件名（去掉路径）
-    const getPureFilename = (path) => {
-        return path.split(/[\\/]/).pop();
-    };
-    
+    // 排序文件
     const sortedFiles = [...files].sort((a, b) => {
         const aName = getPureFilename(a.name);
         const bName = getPureFilename(b.name);
@@ -192,12 +193,18 @@ function loadMaterials(files) {
         return aIdx - bIdx;
     });
     
+    console.log('Sorted files:', sortedFiles.map(f => getPureFilename(f.name)));
+    
     sortedFiles.forEach(file => {
         const pureName = getPureFilename(file.name);
         const match = pureName.match(/^(\d+)\.png$/);
-        if (!match) return;
+        if (!match) {
+            console.log('Skipping file:', pureName);
+            return;
+        }
         
         const index = parseInt(match[1]);
+        console.log('Processing material:', index, pureName);
         materialEnabled[index] = true;
         
         const reader = new FileReader();
@@ -242,6 +249,7 @@ function loadMaterials(files) {
                 materialList.appendChild(listItem);
                 
                 loaded++;
+                console.log('Loaded material', index, '(' + loaded + '/' + total + ')');
                 if (loaded === total) {
                     materialUpload.querySelector('h3').textContent = '材质权重图已加载: ' + Object.keys(materialImages).length + '张';
                     console.log('All materials loaded!');
