@@ -82,6 +82,9 @@ const materialList = document.getElementById('material-list');
 const clearHeightmapBtn = document.getElementById('clear-heightmap-btn');
 const clearMaterialBtn = document.getElementById('clear-material-btn');
 
+// 初始提示
+materialList.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">请先上传材质权重图</p>';
+
 // 缩放和拖拽状态
 let scale = 1;
 let offsetX = 0;
@@ -174,6 +177,11 @@ function loadMaterials(files) {
     materialEnabled = {};
     materialPreview.innerHTML = '';
     materialList.innerHTML = '';
+    
+    if (files.length === 0) {
+        materialList.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">请先上传材质权重图</p>';
+        return;
+    }
     
     let loaded = 0;
     const total = files.length;
