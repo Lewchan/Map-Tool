@@ -179,14 +179,22 @@ function loadMaterials(files) {
     let loaded = 0;
     const total = files.length;
     
+    // 提取纯文件名（去掉路径）
+    const getPureFilename = (path) => {
+        return path.split(/[\\/]/).pop();
+    };
+    
     const sortedFiles = [...files].sort((a, b) => {
-        const aIdx = parseInt(a.name.match(/^(\d+)\.png$/)?.[1] || '999');
-        const bIdx = parseInt(b.name.match(/^(\d+)\.png$/)?.[1] || '999');
+        const aName = getPureFilename(a.name);
+        const bName = getPureFilename(b.name);
+        const aIdx = parseInt(aName.match(/^(\d+)\.png$/)?.[1] || '999');
+        const bIdx = parseInt(bName.match(/^(\d+)\.png$/)?.[1] || '999');
         return aIdx - bIdx;
     });
     
     sortedFiles.forEach(file => {
-        const match = file.name.match(/^(\d+)\.png$/);
+        const pureName = getPureFilename(file.name);
+        const match = pureName.match(/^(\d+)\.png$/);
         if (!match) return;
         
         const index = parseInt(match[1]);
