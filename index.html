@@ -12,12 +12,20 @@
         <div class="upload-section">
             <div class="upload-box" id="heightmap-upload">
                 <h3>拖放高度图 (16位PNG)</h3>
+                <p class="upload-hint">input/height_map/</p>
                 <input type="file" id="heightmap-input" accept="image/png">
             </div>
             <div class="upload-box" id="material-upload">
                 <h3>拖放材质权重图文件夹 (0.png ~ 16.png)</h3>
+                <p class="upload-hint">input/biome_map/</p>
                 <input type="file" id="material-input" webkitdirectory multiple>
             </div>
+        </div>
+
+        <div class="preview-toggle">
+            <label>
+                <input type="checkbox" id="overlay-toggle"> 叠加预览高度图和材质图
+            </label>
         </div>
 
         <div class="params-section">

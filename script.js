@@ -55,6 +55,7 @@ const BiomeToEnvironment = {
 
 // 状态
 let heightmapData = null;
+let heightmapImage = null;
 let materialImages = {};
 let grids = [];
 
@@ -73,6 +74,7 @@ const zoomInBtn = document.getElementById('zoom-in-btn');
 const zoomOutBtn = document.getElementById('zoom-out-btn');
 const resetZoomBtn = document.getElementById('reset-zoom-btn');
 const zoomLevelSpan = document.getElementById('zoom-level');
+const overlayToggle = document.getElementById('overlay-toggle');
 
 // 缩放和拖拽状态
 let scale = 1;
@@ -132,6 +134,7 @@ function loadHeightmap(file) {
     reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
+            heightmapImage = img;
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
@@ -397,42 +400,94 @@ function drawPreview(width) {
     previewCanvas.width = width;
     previewCanvas.height = width;
     
-    const imageData = ctx.createImageData(width, width);
-    
-    for (let y = 0; y < width; y++) {
-        for (let x = 0; x < width; x++) {
-            const idx = y * width + x;
-            const grid = grids[idx];
-            const pixelIdx = idx * 4;
-            
-            // 根据地形类型着色
-            let r, g, b;
-            
-            switch (grid.Terrain) {
-                case E_Terrain.Water:
-                    r = 30; g = 64; b = 175;
-                    break;
-                case E_Terrain.Plain:
-                    r = 86; g = 152; b = 59;
-                    break;
-                case E_Terrain.Hill:
-                    r = 140; g = 120; b = 80;
-                    break;
-                case E_Terrain.Mountain:
-                    r = 100; g = 100; b = 100;
-                    break;
-                default:
-                    r = 0; g = 0; b = 0;
+    if (overlayToggle.checked && heightmapImage) {
+        // 叠加预览模式：先画高度图，再半透明画地形分类
+        ctx.drawImage(heightmapImage, 0, 0, width, width);
+        ctx.globalAlpha = 0.5;
+        
+        const imageData = ctx.createImageData(width, width);
+        
+        for (let y = 0; y < width; y++) {
+            for (let x = 0; x < width; x++) {
+                const idx = y * width + x;
+                const grid = grids[idx];
+                const pixelIdx = idx * 4;
+                
+                // 根据地形类型着色
+                let r, g, b;
+                
+                switch (grid.Terrain) {
+                    case E_Terrain.Water:
+                        r = 30; g = 64; b = 175;
+                        break;
+                    case E_Terrain.Plain:
+                        r = 86; g = 152; b = 59;
+                        break;
+                    case E_Terrain.Hill:
+                        r = 140; g = 120; b = 80;
+                        break;
+                    case E_Terrain.Mountain:
+                        r = 100; g = 100; b = 100;
+                        break;
+                    default:
+                        r = 0; g = 0; b = 0;
+                }
+                
+                imageData.data[pixelIdx] = r;
+                imageData.data[pixelIdx + 1] = g;
+                imageData.data[pixelIdx + 2] = b;
+                imageData.data[pixelIdx + 3] = 255;
             }
-            
-            imageData.data[pixelIdx] = r;
-            imageData.data[pixelIdx + 1] = g;
-            imageData.data[pixelIdx + 2] = b;
-            imageData.data[pixelIdx + 3] = 255;
         }
+        
+        // 先保存当前alpha，再用putImageData（会忽略globalAlpha），所以我们手动混合
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = width;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.globalAlpha = 1.0;
+    } else {
+        // 普通预览模式：只画地形分类
+        const imageData = ctx.createImageData(width, width);
+        
+        for (let y = 0; y < width; y++) {
+            for (let x = 0; x < width; x++) {
+                const idx = y * width + x;
+                const grid = grids[idx];
+                const pixelIdx = idx * 4;
+                
+                // 根据地形类型着色
+                let r, g, b;
+                
+                switch (grid.Terrain) {
+                    case E_Terrain.Water:
+                        r = 30; g = 64; b = 175;
+                        break;
+                    case E_Terrain.Plain:
+                        r = 86; g = 152; b = 59;
+                        break;
+                    case E_Terrain.Hill:
+                        r = 140; g = 120; b = 80;
+                        break;
+                    case E_Terrain.Mountain:
+                        r = 100; g = 100; b = 100;
+                        break;
+                    default:
+                        r = 0; g = 0; b = 0;
+                }
+                
+                imageData.data[pixelIdx] = r;
+                imageData.data[pixelIdx + 1] = g;
+                imageData.data[pixelIdx + 2] = b;
+                imageData.data[pixelIdx + 3] = 255;
+            }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
     }
     
-    ctx.putImageData(imageData, 0, 0);
     updateCanvasTransform();
 }
 
