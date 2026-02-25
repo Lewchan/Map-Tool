@@ -17,6 +17,8 @@ const BiomeToEnvironment = {
 };
 
 // 状态
+let originalImgWidth = 0;
+let originalImgHeight = 0;
 let heightmapData = null;
 let heightmapImage = null;
 let materialImages = {};
@@ -94,8 +96,6 @@ function loadHeightmap(file) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const dataUrl = e.target.result;
-        console.log('Reader done, dataUrl length:', dataUrl.length);
-        
         const img = new Image();
         img.onload = function() {
             console.log('Image loaded, size:', img.width, 'x', img.height);
@@ -110,19 +110,24 @@ function loadHeightmap(file) {
             
             heightmapUpload.querySelector('h3').textContent = '高度图已加载: ' + img.width + 'x' + img.height;
             
-            // 显示预览
-            console.log('Showing preview...');
-            heightmapPreview.innerHTML = '';
-            const previewImg = document.createElement('img');
-            previewImg.src = dataUrl;
-            previewImg.style.maxWidth = '100%';
-            previewImg.style.maxHeight = '150px';
-            previewImg.style.display = 'block';
-            previewImg.style.margin = '10px auto';
-            previewImg.style.border = '2px solid #61dafb';
-            previewImg.style.borderRadius = '4px';
-            heightmapPreview.appendChild(previewImg);
-            console.log('Preview shown!');
+            // 保存原图尺寸
+            originalImgWidth = img.width;
+            originalImgHeight = img.height;
+            
+            // 在大预览框里显示
+            console.log('Showing heightmap in big canvas...');
+            previewCanvas.width = img.width;
+            previewCanvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            // 计算默认缩放：最大边1024像素
+            const maxSize = Math.max(img.width, img.height);
+            scale = 1024 / maxSize;
+            scale = Math.min(scale, 1);
+            
+            updateCanvasTransform();
+            
+            console.log('Preview shown with scale:', scale);
         };
         img.src = dataUrl;
     };
@@ -245,9 +250,12 @@ clearHeightmapBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     heightmapData = null;
     heightmapImage = null;
-    heightmapPreview.innerHTML = '';
+    originalImgWidth = 0;
+    originalImgHeight = 0;
     heightmapUpload.querySelector('h3').textContent = '拖放高度图 (16位PNG)';
     heightmapInput.value = '';
+    previewCanvas.width = 0;
+    previewCanvas.height = 0;
 });
 
 clearMaterialBtn.addEventListener('click', (e) => {
@@ -260,6 +268,18 @@ clearMaterialBtn.addEventListener('click', (e) => {
     materialInput.value = '';
 });
 
+// ========== 获取参数 ==========
+function getParams() {
+    return {
+        seaLevel: parseInt(document.getElementById('sea-level').value),
+        plainThreshold: parseFloat(document.getElementById('plain-threshold').value),
+        hillThreshold: parseFloat(document.getElementById('hill-threshold').value),
+        cellSize: parseInt(document.getElementById('cell-size').value),
+        componentSize: parseInt(document.getElementById('component-size').value),
+        gridSize: parseFloat(document.getElementById('grid-size').value)
+    };
+}
+
 // ========== 生成JSON ==========
 generateBtn.addEventListener('click', () => {
     console.log('Generate clicked');
@@ -267,11 +287,346 @@ generateBtn.addEventListener('click', () => {
         alert('请先加载高度图');
         return;
     }
+    if (Object.keys(materialImages).length === 0) {
+        alert('请先加载材质权重图');
+        return;
+    }
     
-    // 简单生成测试JSON，先不写复杂逻辑
-    const testData = [{ Height: 3600, Terrain: 0, Biome: 1, Environment: 7 }];
-    jsonOutput.value = JSON.stringify(testData, null, 2);
-    console.log('Test JSON generated');
+    const params = getParams();
+    const width = params.componentSize / params.cellSize;
+    grids = [];
+    
+    console.log('Generating grids...', width, 'x', width);
+    
+    // 1. 读取高度和材质
+    for (let y = 0; y < width; y++) {
+        for (let x = 0; x < width; x++) {
+            const grid = {
+                Height: 0,
+                Terrain: E_Terrain.None,
+                Biome: E_Biome.None,
+                IsBuild: false,
+                ResourceType: 0,
+                IsSettlement: false,
+                Environment: 0
+            };
+            
+            // 读取高度（16位PNG：R=低8位，G=高8位）
+            const imgX = x * params.cellSize;
+            const imgY = y * params.cellSize;
+            const imgIdx = (imgY * heightmapData.width + imgX) * 4;
+            const r = heightmapData.data[imgIdx];
+            const g = heightmapData.data[imgIdx + 1];
+            grid.Height = (g << 8) | r;
+            
+            // 读取材质权重（只考虑启用的材质层）
+            let maxWeight = 0;
+            let biomeIndex = E_Biome.None;
+            
+            for (let i = 0; i <= 16; i++) {
+                if (!materialImages[i] || !materialEnabled[i]) continue;
+                
+                const matImgX = imgX;
+                const matImgY = imgY;
+                const matIdx = (matImgY * materialImages[i].width + matImgX) * 4;
+                const weight = materialImages[i].data[matIdx]; // R通道
+                
+                if (weight > maxWeight) {
+                    maxWeight = weight;
+                    biomeIndex = i;
+                }
+            }
+            
+            grid.Biome = biomeIndex;
+            grid.Environment = BiomeToEnvironment[biomeIndex] || 0;
+            
+            // 如果是水域，直接标记
+            if (grid.Biome === E_Biome.Water) {
+                grid.Terrain = E_Terrain.Water;
+            }
+            
+            grids.push(grid);
+        }
+    }
+    
+    console.log('Grids loaded, classifying terrain...');
+    
+    // 2. 根据坡度分类地形
+    classifyTerrainBySlope(params);
+    
+    console.log('Terrain classified, doing DFS...');
+    
+    // 3. DFS处理被包围的平原
+    dfsAnalyzeEnclosedPlains(width);
+    
+    console.log('DFS done, generating JSON and preview...');
+    
+    // 生成JSON
+    jsonOutput.value = JSON.stringify(grids, null, 2);
+    
+    // 在大预览框里显示地形分类
+    drawTerrainPreview(width);
+    
+    console.log('Done!');
+});
+
+// ========== 根据坡度分类地形 ==========
+function classifyTerrainBySlope(params) {
+    const width = params.componentSize / params.cellSize;
+    
+    for (let y = 0; y < width; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            const grid = grids[idx];
+            
+            // 如果已经是水域，跳过
+            if (grid.Biome === E_Biome.Water) continue;
+            
+            // 低于海平面，标记为水域
+            if (grid.Height <= params.seaLevel) {
+                grid.Terrain = E_Terrain.Water;
+                grid.Biome = E_Biome.Water;
+                continue;
+            }
+            
+            let maxSlope = 0;
+            
+            // 遍历8个邻居
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    if (ox === 0 && oy === 0) continue;
+                    
+                    const nx = x + ox;
+                    const ny = y + oy;
+                    
+                    if (nx < 0 || ny < 0 || nx >= width || ny >= width) continue;
+                    
+                    const nIdx = ny * width + nx;
+                    const neighborHeight = grids[nIdx].Height;
+                    
+                    // 计算距离
+                    const distance = Math.sqrt(
+                        Math.pow(ox * params.cellSize * params.gridSize, 2) +
+                        Math.pow(oy * params.cellSize * params.gridSize, 2)
+                    );
+                    
+                    // 计算坡度
+                    const slope = Math.abs(neighborHeight - grid.Height) / distance;
+                    
+                    if (slope > maxSlope) {
+                        maxSlope = slope;
+                    }
+                }
+            }
+            
+            // 根据坡度分类
+            if (maxSlope <= params.plainThreshold) {
+                grid.Terrain = E_Terrain.Plain;
+            } else if (maxSlope <= params.hillThreshold) {
+                grid.Terrain = E_Terrain.Hill;
+            } else {
+                grid.Terrain = E_Terrain.Mountain;
+            }
+        }
+    }
+}
+
+// ========== DFS处理被包围的平原 ==========
+function dfsAnalyzeEnclosedPlains(width) {
+    const visited = new Array(grids.length).fill(false);
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    
+    for (let i = 0; i < grids.length; i++) {
+        if (visited[i]) continue;
+        
+        const terrain = grids[i].Terrain;
+        
+        // 只处理平原和丘陵
+        if (terrain !== E_Terrain.Plain && terrain !== E_Terrain.Hill) continue;
+        
+        const stack = [i];
+        const touched = [];
+        let enclosed = true;
+        
+        while (stack.length > 0) {
+            const current = stack.pop();
+            
+            if (visited[current]) continue;
+            visited[current] = true;
+            touched.push(current);
+            
+            const cx = current % width;
+            const cy = Math.floor(current / width);
+            
+            for (const [dx, dy] of directions) {
+                const nx = cx + dx;
+                const ny = cy + dy;
+                
+                if (nx < 0 || ny < 0 || nx >= width || ny >= width) {
+                    enclosed = false;
+                    continue;
+                }
+                
+                const nIdx = ny * width + nx;
+                
+                if (visited[nIdx]) continue;
+                
+                const nTerrain = grids[nIdx].Terrain;
+                
+                if (nTerrain === E_Terrain.Plain || nTerrain === E_Terrain.Hill) {
+                    stack.push(nIdx);
+                    visited[nIdx] = true;
+                } else if (nTerrain === E_Terrain.Water) {
+                    enclosed = false;
+                }
+            }
+        }
+        
+        // 如果被包围，转为山脉
+        if (enclosed) {
+            for (const idx of touched) {
+                grids[idx].Terrain = E_Terrain.Mountain;
+            }
+        }
+    }
+}
+
+// ========== 绘制地形分类预览 ==========
+function drawTerrainPreview(width) {
+    previewCanvas.width = width;
+    previewCanvas.height = width;
+    
+    const imageData = ctx.createImageData(width, width);
+    
+    for (let y = 0; y < width; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            const grid = grids[idx];
+            const pixelIdx = idx * 4;
+            
+            // 根据地形类型着色
+            let r, g, b;
+            
+            switch (grid.Terrain) {
+                case E_Terrain.Water:
+                    r = 30; g = 64; b = 175;
+                    break;
+                case E_Terrain.Plain:
+                    r = 86; g = 152; b = 59;
+                    break;
+                case E_Terrain.Hill:
+                    r = 140; g = 120; b = 80;
+                    break;
+                case E_Terrain.Mountain:
+                    r = 100; g = 100; b = 100;
+                    break;
+                default:
+                    r = 0; g = 0; b = 0;
+            }
+            
+            imageData.data[pixelIdx] = r;
+            imageData.data[pixelIdx + 1] = g;
+            imageData.data[pixelIdx + 2] = b;
+            imageData.data[pixelIdx + 3] = 255;
+        }
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+    
+    // 重置缩放和容器大小（使用地形预览图尺寸）
+    originalImgWidth = width;
+    originalImgHeight = width;
+    const maxSize = Math.max(width, width);
+    scale = 1024 / maxSize;
+    scale = Math.min(scale, 1);
+    updateCanvasTransform();
+}
+
+// ========== 预览缩放拖拽 ==========
+function scaleAroundCenter(factor) {
+    scale = Math.min(Math.max(scale * factor, 0.1), 10);
+    updateCanvasTransform();
+}
+
+zoomInBtn.addEventListener('click', () => {
+    scaleAroundCenter(1.2);
+});
+
+zoomOutBtn.addEventListener('click', () => {
+    scaleAroundCenter(1 / 1.2);
+});
+
+resetZoomBtn.addEventListener('click', () => {
+    scale = 1;
+    updateCanvasTransform();
+});
+
+function updateCanvasTransform() {
+    if (!previewCanvas || originalImgWidth === 0) return;
+    
+    // 计算缩放后的图片尺寸
+    const scaledWidth = originalImgWidth * scale;
+    const scaledHeight = originalImgHeight * scale;
+    
+    // canvas-container尺寸 = 缩放后的图片 + 100px边距
+    const margin = 100;
+    const containerWidth = scaledWidth + margin * 2;
+    const containerHeight = scaledHeight + margin * 2;
+    canvasContainer.style.width = containerWidth + 'px';
+    canvasContainer.style.height = containerHeight + 'px';
+    canvasContainer.style.margin = '0 auto';
+    
+    // 图片在容器里居中（100px边距）
+    offsetX = margin;
+    offsetY = margin;
+    
+    previewCanvas.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+    previewCanvas.style.transformOrigin = '0 0';
+    zoomLevelSpan.textContent = '缩放: ' + Math.round(scale * 100) + '%';
+}
+
+// ========== 拖拽 ==========
+canvasContainer.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+});
+
+canvasContainer.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
+    
+    offsetX += dx;
+    offsetY += dy;
+    
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    
+    previewCanvas.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+});
+
+canvasContainer.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
+canvasContainer.addEventListener('mouseleave', () => {
+    isDragging = false;
+});
+
+// ========== 滚轮缩放 ==========
+canvasContainer.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    
+    const oldScale = scale;
+    if (e.deltaY < 0) {
+        scale = Math.min(scale * 1.1, 10);
+    } else {
+        scale = Math.max(scale / 1.1, 0.1);
+    }
+    
+    updateCanvasTransform();
 });
 
 // ========== 下载JSON ==========
@@ -289,30 +644,5 @@ downloadBtn.addEventListener('click', () => {
     a.click();
     URL.revokeObjectURL(url);
 });
-
-// ========== 预览缩放拖拽（先简化） ==========
-zoomInBtn.addEventListener('click', () => {
-    scale = Math.min(scale * 1.2, 10);
-    updateCanvasTransform();
-});
-
-zoomOutBtn.addEventListener('click', () => {
-    scale = Math.max(scale / 1.2, 0.1);
-    updateCanvasTransform();
-});
-
-resetZoomBtn.addEventListener('click', () => {
-    scale = 1;
-    offsetX = 0;
-    offsetY = 0;
-    updateCanvasTransform();
-});
-
-function updateCanvasTransform() {
-    if (!previewCanvas) return;
-    previewCanvas.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
-    previewCanvas.style.transformOrigin = '0 0';
-    zoomLevelSpan.textContent = '缩放: ' + Math.round(scale * 100) + '%';
-}
 
 console.log('=== SCRIPT INIT DONE ===');
