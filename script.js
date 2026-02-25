@@ -180,13 +180,13 @@ function loadMaterials(files) {
     const total = files.length;
     
     const sortedFiles = [...files].sort((a, b) => {
-        const aIdx = parseInt(a.name.match(/^(\\d+)\\.png$/)?.[1] || '999');
-        const bIdx = parseInt(b.name.match(/^(\\d+)\\.png$/)?.[1] || '999');
+        const aIdx = parseInt(a.name.match(/^(\d+)\.png$/)?.[1] || '999');
+        const bIdx = parseInt(b.name.match(/^(\d+)\.png$/)?.[1] || '999');
         return aIdx - bIdx;
     });
     
     sortedFiles.forEach(file => {
-        const match = file.name.match(/^(\\d+)\\.png$/);
+        const match = file.name.match(/^(\d+)\.png$/);
         if (!match) return;
         
         const index = parseInt(match[1]);
