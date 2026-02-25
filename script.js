@@ -75,6 +75,8 @@ const zoomOutBtn = document.getElementById('zoom-out-btn');
 const resetZoomBtn = document.getElementById('reset-zoom-btn');
 const zoomLevelSpan = document.getElementById('zoom-level');
 const overlayToggle = document.getElementById('overlay-toggle');
+const heightmapPreview = document.getElementById('heightmap-preview');
+const materialPreview = document.getElementById('material-preview');
 
 // 缩放和拖拽状态
 let scale = 1;
@@ -142,6 +144,14 @@ function loadHeightmap(file) {
             c.drawImage(img, 0, 0);
             heightmapData = c.getImageData(0, 0, img.width, img.height);
             heightmapUpload.querySelector('h3').textContent = `高度图已加载: ${img.width}x${img.height}`;
+            
+            // 显示预览
+            heightmapPreview.innerHTML = '';
+            const previewImg = document.createElement('img');
+            previewImg.src = e.target.result;
+            previewImg.style.maxWidth = '100%';
+            previewImg.style.maxHeight = '180px';
+            heightmapPreview.appendChild(previewImg);
         };
         img.src = e.target.result;
     };
@@ -157,6 +167,7 @@ function handleMaterials(e) {
 // 加载材质权重图
 function loadMaterials(files) {
     materialImages = {};
+    materialPreview.innerHTML = '';
     let loaded = 0;
     const total = files.length;
     
@@ -175,6 +186,18 @@ function loadMaterials(files) {
                 const c = canvas.getContext('2d');
                 c.drawImage(img, 0, 0);
                 materialImages[index] = c.getImageData(0, 0, img.width, img.height);
+                
+                // 显示预览
+                const item = document.createElement('div');
+                item.className = 'material-item';
+                const previewImg = document.createElement('img');
+                previewImg.src = e.target.result;
+                const label = document.createElement('span');
+                label.textContent = `${index}.png`;
+                item.appendChild(previewImg);
+                item.appendChild(label);
+                materialPreview.appendChild(item);
+                
                 loaded++;
                 if (loaded === total) {
                     materialUpload.querySelector('h3').textContent = `材质权重图已加载: ${Object.keys(materialImages).length}张`;

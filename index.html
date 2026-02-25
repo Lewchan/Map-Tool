@@ -14,17 +14,19 @@
                 <h3>拖放高度图 (16位PNG)</h3>
                 <p class="upload-hint">input/height_map/</p>
                 <input type="file" id="heightmap-input" accept="image/png">
+                <div class="upload-preview" id="heightmap-preview"></div>
             </div>
             <div class="upload-box" id="material-upload">
                 <h3>拖放材质权重图文件夹 (0.png ~ 16.png)</h3>
                 <p class="upload-hint">input/biome_map/</p>
                 <input type="file" id="material-input" webkitdirectory multiple>
+                <div class="upload-preview" id="material-preview"></div>
             </div>
         </div>
 
         <div class="preview-toggle">
             <label>
-                <input type="checkbox" id="overlay-toggle"> 叠加预览高度图和材质图
+                <input type="checkbox" id="overlay-toggle"> 叠加预览高度图和地形分类
             </label>
         </div>
 
