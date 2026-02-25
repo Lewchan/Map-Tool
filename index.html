@@ -11,19 +11,15 @@
         
         <div class="upload-section">
             <div class="upload-box" id="heightmap-upload">
-                <div class="upload-header">
-                    <h3>拖放高度图 (16位PNG)</h3>
-                    <button class="clear-btn" id="clear-heightmap-btn">清除</button>
-                </div>
+                <button class="clear-btn-small" id="clear-heightmap-btn">×</button>
+                <h3>拖放高度图 (16位PNG)</h3>
                 <p class="upload-hint">input/height_map/</p>
                 <input type="file" id="heightmap-input" accept="image/png">
                 <div class="upload-preview" id="heightmap-preview"></div>
             </div>
             <div class="upload-box" id="material-upload">
-                <div class="upload-header">
-                    <h3>拖放材质权重图文件夹 (0.png ~ 16.png)</h3>
-                    <button class="clear-btn" id="clear-material-btn">清除</button>
-                </div>
+                <button class="clear-btn-small" id="clear-material-btn">×</button>
+                <h3>拖放材质权重图文件夹 (0.png ~ 16.png)</h3>
                 <p class="upload-hint">input/biome_map/</p>
                 <input type="file" id="material-input" webkitdirectory multiple>
                 <div class="upload-preview" id="material-preview"></div>

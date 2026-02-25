@@ -595,7 +595,8 @@ canvasContainer.addEventListener('wheel', (e) => {
 });
 
 // 清除高度图
-function clearHeightmap() {
+function clearHeightmap(e) {
+    e.stopPropagation();
     heightmapData = null;
     heightmapImage = null;
     heightmapPreview.innerHTML = '';
@@ -604,7 +605,8 @@ function clearHeightmap() {
 }
 
 // 清除材质图
-function clearMaterial() {
+function clearMaterial(e) {
+    e.stopPropagation();
     materialImages = {};
     materialPreview.innerHTML = '';
     materialUpload.querySelector('h3').textContent = '拖放材质权重图文件夹 (0.png ~ 16.png)';
