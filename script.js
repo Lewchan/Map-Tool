@@ -201,6 +201,7 @@ function loadMaterials(files) {
         
         const reader = new FileReader();
         reader.onload = (e) => {
+            const dataUrl = e.target.result;
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
@@ -214,7 +215,7 @@ function loadMaterials(files) {
                 const item = document.createElement('div');
                 item.className = 'material-item';
                 const previewImg = document.createElement('img');
-                previewImg.src = e.target.result;
+                previewImg.src = dataUrl;
                 const label = document.createElement('span');
                 label.textContent = `${index}.png`;
                 item.appendChild(previewImg);
@@ -232,7 +233,7 @@ function loadMaterials(files) {
                     materialEnabled[index] = e.target.checked;
                 });
                 const listImg = document.createElement('img');
-                listImg.src = e.target.result;
+                listImg.src = dataUrl;
                 const listLabel = document.createElement('span');
                 listLabel.textContent = `${index}.png`;
                 listItem.appendChild(checkbox);
