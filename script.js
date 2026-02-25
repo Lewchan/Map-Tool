@@ -34,30 +34,14 @@ const E_Biome = {
 
 // 生态到环境适宜度映射
 const BiomeToEnvironment = {
-    0: 7,   // Temperate_Savanna
-    1: 7,   // Temperate_Forest
-    2: 3,   // Boreal_Tundra
-    3: 5,   // Boreal_Forest
-    4: 4,   // Boreal_Savanna
-    5: 7,   // Tropical_Rainforest
-    6: 0,   // Iceland
-    7: 3,   // Gobi
-    8: 0,   // Desert
-    9: 1,   // Rocky
-    10: 0,  // Saline
-    11: 3,  // Wasteland
-    12: 6,  // Wetland
-    13: 2,  // Dead_Zones
-    14: 3,  // Water
-    15: 0,  // Road
-    16: 7   // Soil
+    0: 7, 1: 7, 2: 3, 3: 5, 4: 4, 5: 7, 6: 0, 7: 3, 8: 0, 9: 1, 10: 0, 11: 3, 12: 6, 13: 2, 14: 3, 15: 0, 16: 7
 };
 
 // 状态
 let heightmapData = null;
 let heightmapImage = null;
 let materialImages = {};
-let materialEnabled = {}; // 材质层启用状态
+let materialEnabled = {};
 let grids = [];
 
 // DOM元素
@@ -93,8 +77,11 @@ let isDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
-// 拖放高度图
-heightmapUpload.addEventListener('click', () => heightmapInput.click());
+// 高度图上传
+heightmapUpload.addEventListener('click', (e) => {
+    e.stopPropagation();
+    heightmapInput.click();
+});
 heightmapInput.addEventListener('change', handleHeightmap);
 heightmapUpload.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -112,8 +99,11 @@ heightmapUpload.addEventListener('drop', (e) => {
     }
 });
 
-// 拖放材质权重图
-materialUpload.addEventListener('click', () => materialInput.click());
+// 材质图上传
+materialUpload.addEventListener('click', (e) => {
+    e.stopPropagation();
+    materialInput.click();
+});
 materialInput.addEventListener('change', handleMaterials);
 materialUpload.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -139,10 +129,13 @@ function handleHeightmap(e) {
 
 // 加载高度图
 function loadHeightmap(file) {
+    console.log('Loading heightmap:', file.name);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
         const img = new Image();
-        img.onload = () => {
+        img.onload = function() {
+            console.log('Heightmap loaded:', img.width, 'x', img.height);
             heightmapImage = img;
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
@@ -150,17 +143,22 @@ function loadHeightmap(file) {
             const c = canvas.getContext('2d');
             c.drawImage(img, 0, 0);
             heightmapData = c.getImageData(0, 0, img.width, img.height);
-            heightmapUpload.querySelector('h3').textContent = `高度图已加载: ${img.width}x${img.height}`;
+            heightmapUpload.querySelector('h3').textContent = '高度图已加载: ' + img.width + 'x' + img.height;
             
             // 显示预览
             heightmapPreview.innerHTML = '';
             const previewImg = document.createElement('img');
-            previewImg.src = e.target.result;
+            previewImg.src = dataUrl;
             previewImg.style.maxWidth = '100%';
-            previewImg.style.maxHeight = '120px';
+            previewImg.style.maxHeight = '150px';
+            previewImg.style.display = 'block';
+            previewImg.style.margin = '10px auto';
+            previewImg.style.border = '2px solid #61dafb';
+            previewImg.style.borderRadius = '4px';
             heightmapPreview.appendChild(previewImg);
+            console.log('Preview added');
         };
-        img.src = e.target.result;
+        img.src = dataUrl;
     };
     reader.readAsDataURL(file);
 }
@@ -187,23 +185,23 @@ function loadMaterials(files) {
     const total = files.length;
     
     const sortedFiles = [...files].sort((a, b) => {
-        const aIdx = parseInt(a.name.match(/^(\d+)\.png$/)?.[1] || '999');
-        const bIdx = parseInt(b.name.match(/^(\d+)\.png$/)?.[1] || '999');
+        const aIdx = parseInt(a.name.match(/^(\\d+)\\.png$/)?.[1] || '999');
+        const bIdx = parseInt(b.name.match(/^(\\d+)\\.png$/)?.[1] || '999');
         return aIdx - bIdx;
     });
     
     sortedFiles.forEach(file => {
-        const match = file.name.match(/^(\d+)\.png$/);
+        const match = file.name.match(/^(\\d+)\\.png$/);
         if (!match) return;
         
         const index = parseInt(match[1]);
-        materialEnabled[index] = true; // 默认启用
+        materialEnabled[index] = true;
         
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = function(e) {
             const dataUrl = e.target.result;
             const img = new Image();
-            img.onload = () => {
+            img.onload = function() {
                 const canvas = document.createElement('canvas');
                 canvas.width = img.width;
                 canvas.height = img.height;
@@ -217,7 +215,7 @@ function loadMaterials(files) {
                 const previewImg = document.createElement('img');
                 previewImg.src = dataUrl;
                 const label = document.createElement('span');
-                label.textContent = `${index}.png`;
+                label.textContent = index + '.png';
                 item.appendChild(previewImg);
                 item.appendChild(label);
                 materialPreview.appendChild(item);
@@ -228,14 +226,13 @@ function loadMaterials(files) {
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.checked = true;
-                checkbox.dataset.index = index;
-                checkbox.addEventListener('change', (e) => {
-                    materialEnabled[index] = e.target.checked;
+                checkbox.addEventListener('change', function() {
+                    materialEnabled[index] = this.checked;
                 });
                 const listImg = document.createElement('img');
                 listImg.src = dataUrl;
                 const listLabel = document.createElement('span');
-                listLabel.textContent = `${index}.png`;
+                listLabel.textContent = index + '.png';
                 listItem.appendChild(checkbox);
                 listItem.appendChild(listImg);
                 listItem.appendChild(listLabel);
@@ -243,10 +240,10 @@ function loadMaterials(files) {
                 
                 loaded++;
                 if (loaded === total) {
-                    materialUpload.querySelector('h3').textContent = `材质权重图已加载: ${Object.keys(materialImages).length}张`;
+                    materialUpload.querySelector('h3').textContent = '材质权重图已加载: ' + Object.keys(materialImages).length + '张';
                 }
             };
-            img.src = e.target.result;
+            img.src = dataUrl;
         };
         reader.readAsDataURL(file);
     });
@@ -288,7 +285,6 @@ function generateGrids() {
                 Environment: 0
             };
             
-            // 读取高度（从16位PNG，取R通道作为低8位，G通道作为高8位）
             const imgX = x * params.cellSize;
             const imgY = y * params.cellSize;
             const imgIdx = (imgY * heightmapData.width + imgX) * 4;
@@ -296,7 +292,6 @@ function generateGrids() {
             const g = heightmapData.data[imgIdx + 1];
             grid.Height = (g << 8) | r;
             
-            // 读取材质权重（只考虑启用的材质层）
             let maxWeight = 0;
             let biomeIndex = E_Biome.None;
             
@@ -306,7 +301,7 @@ function generateGrids() {
                 const matImgX = imgX;
                 const matImgY = imgY;
                 const matIdx = (matImgY * materialImages[i].width + matImgX) * 4;
-                const weight = materialImages[i].data[matIdx]; // 取R通道作为权重
+                const weight = materialImages[i].data[matIdx];
                 
                 if (weight > maxWeight) {
                     maxWeight = weight;
@@ -317,7 +312,6 @@ function generateGrids() {
             grid.Biome = biomeIndex;
             grid.Environment = BiomeToEnvironment[biomeIndex] || 0;
             
-            // 如果是水域，直接标记
             if (grid.Biome === E_Biome.Water) {
                 grid.Terrain = E_Terrain.Water;
             }
@@ -349,10 +343,8 @@ function classifyTerrainBySlope(params) {
             const idx = y * width + x;
             const grid = grids[idx];
             
-            // 如果已经是水域，跳过
             if (grid.Biome === E_Biome.Water) continue;
             
-            // 低于海平面，标记为水域
             if (grid.Height <= params.seaLevel) {
                 grid.Terrain = E_Terrain.Water;
                 grid.Biome = E_Biome.Water;
@@ -361,7 +353,6 @@ function classifyTerrainBySlope(params) {
             
             let maxSlope = 0;
             
-            // 遍历8个邻居
             for (let oy = -1; oy <= 1; oy++) {
                 for (let ox = -1; ox <= 1; ox++) {
                     if (ox === 0 && oy === 0) continue;
@@ -374,13 +365,11 @@ function classifyTerrainBySlope(params) {
                     const nIdx = ny * width + nx;
                     const neighborHeight = grids[nIdx].Height;
                     
-                    // 计算距离
                     const distance = Math.sqrt(
                         Math.pow(ox * params.cellSize * params.gridSize, 2) +
                         Math.pow(oy * params.cellSize * params.gridSize, 2)
                     );
                     
-                    // 计算坡度
                     const slope = Math.abs(neighborHeight - grid.Height) / distance;
                     
                     if (slope > maxSlope) {
@@ -389,7 +378,6 @@ function classifyTerrainBySlope(params) {
                 }
             }
             
-            // 根据坡度分类
             if (maxSlope <= params.plainThreshold) {
                 grid.Terrain = E_Terrain.Plain;
             } else if (maxSlope <= params.hillThreshold) {
@@ -411,7 +399,6 @@ function dfsAnalyzeEnclosedPlains(width) {
         
         const terrain = grids[i].Terrain;
         
-        // 只处理平原和丘陵
         if (terrain !== E_Terrain.Plain && terrain !== E_Terrain.Hill) continue;
         
         const stack = [i];
@@ -452,7 +439,6 @@ function dfsAnalyzeEnclosedPlains(width) {
             }
         }
         
-        // 如果被包围，转为山脉
         if (enclosed) {
             for (const idx of touched) {
                 grids[idx].Terrain = E_Terrain.Mountain;
@@ -467,7 +453,6 @@ function drawPreview(width) {
     previewCanvas.height = width;
     
     if (overlayToggle.checked && heightmapImage) {
-        // 叠加预览模式：先画高度图，再半透明画地形分类
         ctx.drawImage(heightmapImage, 0, 0, width, width);
         ctx.globalAlpha = 0.5;
         
@@ -479,7 +464,6 @@ function drawPreview(width) {
                 const grid = grids[idx];
                 const pixelIdx = idx * 4;
                 
-                // 根据地形类型着色
                 let r, g, b;
                 
                 switch (grid.Terrain) {
@@ -506,7 +490,6 @@ function drawPreview(width) {
             }
         }
         
-        // 先保存当前alpha，再用putImageData（会忽略globalAlpha），所以我们手动混合
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = width;
         tempCanvas.height = width;
@@ -515,7 +498,6 @@ function drawPreview(width) {
         ctx.drawImage(tempCanvas, 0, 0);
         ctx.globalAlpha = 1.0;
     } else {
-        // 普通预览模式：只画地形分类
         const imageData = ctx.createImageData(width, width);
         
         for (let y = 0; y < width; y++) {
@@ -524,7 +506,6 @@ function drawPreview(width) {
                 const grid = grids[idx];
                 const pixelIdx = idx * 4;
                 
-                // 根据地形类型着色
                 let r, g, b;
                 
                 switch (grid.Terrain) {
@@ -559,9 +540,9 @@ function drawPreview(width) {
 
 // 更新画布变换
 function updateCanvasTransform() {
-    previewCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    previewCanvas.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
     previewCanvas.style.transformOrigin = '0 0';
-    zoomLevelSpan.textContent = `缩放: ${Math.round(scale * 100)}%`;
+    zoomLevelSpan.textContent = '缩放: ' + Math.round(scale * 100) + '%';
 }
 
 // 缩放
@@ -627,7 +608,6 @@ canvasContainer.addEventListener('wheel', (e) => {
         scale = Math.max(scale / 1.1, 0.1);
     }
     
-    // 以鼠标为中心缩放
     const scaleChange = scale / oldScale;
     offsetX = mouseX - (mouseX - offsetX) * scaleChange;
     offsetY = mouseY - (mouseY - offsetY) * scaleChange;
@@ -651,7 +631,7 @@ function clearMaterial(e) {
     materialImages = {};
     materialEnabled = {};
     materialPreview.innerHTML = '';
-    materialList.innerHTML = '';
+    materialList.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">请先上传材质权重图</p>';
     materialUpload.querySelector('h3').textContent = '拖放材质权重图文件夹 (0.png ~ 16.png)';
     materialInput.value = '';
 }
