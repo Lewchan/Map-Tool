@@ -68,6 +68,19 @@ const jsonOutput = document.getElementById('json-output');
 const downloadBtn = document.getElementById('download-btn');
 const previewCanvas = document.getElementById('preview-canvas');
 const ctx = previewCanvas.getContext('2d');
+const canvasContainer = document.getElementById('canvas-container');
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const resetZoomBtn = document.getElementById('reset-zoom-btn');
+const zoomLevelSpan = document.getElementById('zoom-level');
+
+// 缩放和拖拽状态
+let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
+let isDragging = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
 
 // 拖放高度图
 heightmapUpload.addEventListener('click', () => heightmapInput.click());
@@ -420,7 +433,91 @@ function drawPreview(width) {
     }
     
     ctx.putImageData(imageData, 0, 0);
+    updateCanvasTransform();
 }
+
+// 更新画布变换
+function updateCanvasTransform() {
+    previewCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    previewCanvas.style.transformOrigin = '0 0';
+    zoomLevelSpan.textContent = `缩放: ${Math.round(scale * 100)}%`;
+}
+
+// 缩放
+function zoomIn() {
+    scale = Math.min(scale * 1.2, 10);
+    updateCanvasTransform();
+}
+
+function zoomOut() {
+    scale = Math.max(scale / 1.2, 0.1);
+    updateCanvasTransform();
+}
+
+function resetZoom() {
+    scale = 1;
+    offsetX = 0;
+    offsetY = 0;
+    updateCanvasTransform();
+}
+
+// 拖拽
+canvasContainer.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+});
+
+canvasContainer.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
+    
+    offsetX += dx;
+    offsetY += dy;
+    
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    
+    updateCanvasTransform();
+});
+
+canvasContainer.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
+canvasContainer.addEventListener('mouseleave', () => {
+    isDragging = false;
+});
+
+// 滚轮缩放
+canvasContainer.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    
+    const rect = canvasContainer.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const oldScale = scale;
+    if (e.deltaY < 0) {
+        scale = Math.min(scale * 1.1, 10);
+    } else {
+        scale = Math.max(scale / 1.1, 0.1);
+    }
+    
+    // 以鼠标为中心缩放
+    const scaleChange = scale / oldScale;
+    offsetX = mouseX - (mouseX - offsetX) * scaleChange;
+    offsetY = mouseY - (mouseY - offsetY) * scaleChange;
+    
+    updateCanvasTransform();
+});
+
+// 事件绑定
+zoomInBtn.addEventListener('click', zoomIn);
+zoomOutBtn.addEventListener('click', zoomOut);
+resetZoomBtn.addEventListener('click', resetZoom);
 
 // 下载JSON
 function downloadJson() {

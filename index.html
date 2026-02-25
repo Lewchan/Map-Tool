@@ -53,7 +53,15 @@
         <button id="generate-btn">生成JSON</button>
 
         <div class="preview-section">
-            <canvas id="preview-canvas"></canvas>
+            <div class="preview-controls">
+                <button id="zoom-in-btn">放大 (+)</button>
+                <button id="zoom-out-btn">缩小 (-)</button>
+                <button id="reset-zoom-btn">重置</button>
+                <span id="zoom-level">缩放: 100%</span>
+            </div>
+            <div class="canvas-container" id="canvas-container">
+                <canvas id="preview-canvas"></canvas>
+            </div>
         </div>
 
         <div class="output-section">
